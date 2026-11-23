@@ -11,6 +11,11 @@ Compra el dominio (por ejemplo en Cloudflare Registrar, Namecheap o Porkbun; uno
 1. Regístrate en Oracle Cloud Free Tier. Pide tarjeta solo para verificar: lo Always Free no se cobra.
 2. **Región home**: `us-ashburn-1` es la más segura para conseguir servidores ARM gratuitos. No se puede cambiar después.
 3. Crea la API key: tu perfil → *API keys* → *Add API key* → *Generate*. Guarda la clave privada en `C:\Users\<tú>\.oci\` (**fuera** del repositorio).
+4. **Recomendado: pasa la cuenta a *Pay As You Go*** (*Billing → Upgrade*). Lo Always Free sigue costando 0, pero:
+   - En cuentas solo-gratuitas Oracle **reclama servidores "inactivos"** (CPU p95 < 20 % durante 7 días). PanaStatus usa poca CPU, así que podría caer en esa regla.
+   - Es más fácil conseguir capacidad ARM.
+   - El presupuesto de 1 USD que crea OpenTofu te avisa si algo empieza a cobrar.
+5. Límite actual (desde el 18-ago-2026): **2 OCPU y 12 GB de RAM** en total para Ampere A1. `variables.tf` ya no permite pasar de ahí; si se excede, Oracle desactiva las instancias.
 
 ## 3. 👤🤖 Crear el servidor con OpenTofu
 

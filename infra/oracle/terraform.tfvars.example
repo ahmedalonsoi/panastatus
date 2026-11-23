@@ -17,7 +17,7 @@ admin_cidr = "203.0.113.10/32"
 
 budget_alert_email = "tu-correo@ejemplo.com"
 
-# Opcional (Always Free: 4 OCPU y 24 GB en total)
+# Opcional (Always Free desde ago-2026: 2 OCPU y 12 GB en total)
 # instance_ocpus     = 2
 # instance_memory_gb = 12
 # boot_volume_gb     = 100
