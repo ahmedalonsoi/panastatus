@@ -1,0 +1,87 @@
+# Producción: se combina con docker-compose.yml y solo cambia lo que difiere.
+#
+#   docker compose -f docker-compose.yml -f deploy/compose.prod.yml up -d
+#
+# Diferencias con desarrollo:
+#   - Imágenes ya construidas por el CI (GHCR, multi-arquitectura) en vez de "build".
+#   - Caddy en 80/443 con el dominio real → HTTPS automático (Let's Encrypt).
+#   - Ningún otro puerto publicado: la DB y la API solo existen en la red interna.
+#   - Copias de seguridad diarias de la base de datos.
+#
+# Variables (en el .env del servidor): APP_IMAGE, WEB_IMAGE, DOMAIN, ACME_EMAIL.
+
+x-prod-app: &prod-app
+  image: ${APP_IMAGE:?Falta APP_IMAGE}
+  # Límite de memoria: un error (fuga de memoria) en un proceso no tumba el servidor.
+  deploy:
+    resources:
+      limits:
+        memory: 512m
+
+services:
+  worker:
+    <<: *prod-app
+    build: !reset null # (!reset no se hereda por el ancla: va en cada servicio)
+  bot:
+    <<: *prod-app
+    build: !reset null # (!reset no se hereda por el ancla: va en cada servicio)
+  api:
+    <<: *prod-app
+    build: !reset null
+    ports: !reset []
+
+  db:
+    ports: !reset []
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  web:
+    image: ${WEB_IMAGE:?Falta WEB_IMAGE}
+    build: !reset null
+    environment:
+      SITE_ADDRESS: ${DOMAIN:?Falta DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Falta ACME_EMAIL}
+    ports: !override
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      # Certificados TLS: si se pierden, Caddy los vuelve a pedir, pero Let's Encrypt
+      # limita cuántos se pueden emitir por semana. Se guardan en un volumen.
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Copia de seguridad diaria (pg_dump comprimido), conserva las últimas 14.
+  # Para restaurar: ver docs/operacion.md.
+  backup:
+    image: timescale/timescaledb:2.32.1-pg17
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          f=/backups/panastatus-$$(date +%Y%m%d-%H%M).dump
+          if pg_dump -Fc -f "$$f"; then
+            echo "backup: $$f ($$(du -h "$$f" | cut -f1))"
+            ls -1t /backups/*.dump | tail -n +15 | xargs -r rm --
+          else
+            echo "backup: ERROR" >&2
+          fi
+          sleep 86400
+        done
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

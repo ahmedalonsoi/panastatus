@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!deploy/.env.production.example
 
 # Python
 __pycache__/
@@ -26,3 +27,6 @@ Thumbs.db
 *.tfvars
 !*.tfvars.example
 crash.log
+
+# Copias de seguridad de la base de datos (servidor)
+backups/
