@@ -19,7 +19,7 @@ from datetime import timedelta
 import asyncpg
 import httpx
 
-from panastatus import db
+from panastatus import db, telemetry
 from panastatus.checker import CheckResult
 from panastatus.config import PANAMA_TZ, ServiceConfig, Settings
 from panastatus.state import Event
@@ -110,22 +110,27 @@ class Notifier:
             try:
                 response = await self.client.post(url, json=payload)
             except httpx.HTTPError as exc:
+                telemetry.notifications.add(1, {"outcome": "failed"})
                 log.warning("fallo enviando a telegram", extra={"error": str(exc)})
                 await asyncio.sleep(2 * (attempt + 1))
                 continue
 
             if response.status_code == 200:
+                telemetry.notifications.add(1, {"outcome": "sent"})
                 return
             if response.status_code == 429:
                 # Telegram nos dice cuánto esperar.
+                telemetry.notifications.add(1, {"outcome": "rate_limited"})
                 retry_after = response.json().get("parameters", {}).get("retry_after", 5)
                 await asyncio.sleep(retry_after)
                 continue
             if response.status_code == 403 and chat_id != self.settings.admin_chat_id:
                 # El usuario bloqueó el bot o lo sacaron del grupo: borramos su chat_id.
+                telemetry.notifications.add(1, {"outcome": "blocked"})
                 await db.delete_subscriber(self.pool, chat_id)
                 log.info("suscriptor eliminado (403)", extra={"chat_id": chat_id})
                 return
+            telemetry.notifications.add(1, {"outcome": "failed"})
             log.warning(
                 "telegram rechazó el mensaje",
                 extra={"status": response.status_code, "body": response.text[:300]},

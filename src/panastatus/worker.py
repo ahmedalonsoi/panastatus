@@ -27,7 +27,7 @@ import time
 import asyncpg
 import httpx
 
-from panastatus import db
+from panastatus import db, telemetry
 from panastatus.checker import CheckResult, build_client, check_service
 from panastatus.config import ServiceConfig, Settings, get_settings, load_monitor_config
 from panastatus.logging_setup import configure_logging
@@ -63,6 +63,7 @@ async def process_result(
         elif event == "recovered":
             incident = await db.resolve_incident(conn, service.id, result.time)
 
+    _record_metrics(service, result, new_state.status, event)
     log.info(
         "revisión",
         extra={
@@ -76,6 +77,21 @@ async def process_result(
     )
     if event:
         await notifier.notify(event, service, result, incident)
+
+
+def _record_metrics(
+    service: ServiceConfig, result: CheckResult, status: str, event: str | None
+) -> None:
+    attrs = {"service_id": service.id, "category": service.category}
+    telemetry.checks.add(1, {**attrs, "result": "ok" if result.ok else "fail"})
+    if result.ok and result.latency_ms is not None:
+        telemetry.check_latency.record(result.latency_ms, attrs)
+    if status in telemetry.STATUS_VALUE:
+        telemetry.service_up.set(telemetry.STATUS_VALUE[status], attrs)
+    if result.ssl_days_left is not None:
+        telemetry.ssl_days_left.set(result.ssl_days_left, attrs)
+    if event:
+        telemetry.events.add(1, {**attrs, "event": str(event)})
 
 
 async def service_loop(
@@ -146,6 +162,8 @@ def main() -> None:
     args = parser.parse_args()
 
     configure_logging()
+    if not args.once:
+        telemetry.setup("worker")
     settings = get_settings()
     try:
         asyncio.run(run_once(settings) if args.once else run_forever(settings))

@@ -25,13 +25,14 @@ import asyncpg
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
-from panastatus import __version__, db
+from panastatus import __version__, db, telemetry
 from panastatus.config import get_settings, load_monitor_config
 
 # --- Modelos de respuesta: documentan la API en /api/docs y filtran qué se expone ---
@@ -100,6 +101,10 @@ async def lifespan(app: FastAPI):
     await app.state.pool.close()
 
 
+# Métricas: se configuran ANTES de crear la app para que la instrumentación de FastAPI
+# use el proveedor real (http_server_request_duration_seconds por ruta y código).
+telemetry.setup("api")
+
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 app = FastAPI(
@@ -111,6 +116,8 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
     redoc_url=None,
 )
+# /health lo consulta Docker cada pocos segundos: no lo medimos para no ensuciar las métricas.
+FastAPIInstrumentor.instrument_app(app, excluded_urls="health")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)

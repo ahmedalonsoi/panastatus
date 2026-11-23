@@ -5,12 +5,19 @@
 #
 # Los valores ${...} salen del archivo .env.
 
+# Nombre fijo del proyecto (prefijo de contenedores y volúmenes), sin importar la carpeta.
+name: panastatus
+
 x-app: &app
   build: .
   env_file: .env
   environment:
     # Dentro de la red de Docker la DB se llama "db", no "localhost".
     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    # Métricas OpenTelemetry → Alloy (ver src/panastatus/telemetry.py).
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+    # Solo las métricas HTTP del estándar estable (http_server_request_duration_seconds).
+    OTEL_SEMCONV_STABILITY_OPT_IN: http
   depends_on:
     db:
       condition: service_healthy
@@ -75,5 +82,75 @@ services:
     # Si no hay TELEGRAM_BOT_TOKEN el bot sale con código 0 y no se reinicia en bucle.
     restart: on-failure
 
+  # ------------------------------------------------------------------
+  # Observabilidad interna: Alloy → Prometheus (métricas) + Loki (logs) → Grafana.
+  # Ninguno se expone a internet; Grafana solo en 127.0.0.1 (en producción se entra
+  # por un túnel SSH, ver docs/operacion.md).
+  # ------------------------------------------------------------------
+  alloy:
+    image: grafana/alloy:v1.21.3
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - --disable-reporting
+    environment:
+      COMPOSE_PROJECT: panastatus
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Solo lectura: Alloy lee los logs de los contenedores a través de Docker.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-otlp-receiver     # recibe métricas OpenTelemetry de Alloy
+      # Al reiniciar un proceso, sus contadores vuelven a 0. Con esto Prometheus usa la hora
+      # de inicio que envía OpenTelemetry y no pierde el primer incremento.
+      - --enable-feature=created-timestamp-zero-ingestion
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.6.22
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./observability/loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.2.6
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Falta GRAFANA_ADMIN_PASSWORD en .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/panastatus.json
+      # Para las alertas internas por Telegram (provisioning/alerting/alerts.yaml).
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:-}
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on: [prometheus, loki]
+    restart: unless-stopped
+
 volumes:
   db_data:
+  alloy_data:
+  prometheus_data:
+  loki_data:
+  grafana_data:
