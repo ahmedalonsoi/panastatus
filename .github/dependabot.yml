@@ -1,0 +1,23 @@
+# Dependabot abre PRs semanales para actualizar dependencias (y avisa de vulnerabilidades).
+# Cada PR pasa por el CI antes de fusionarse, así una actualización rota no llega a main.
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule: { interval: "weekly" }
+    groups:
+      python: { patterns: ["*"] }
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule: { interval: "weekly" }
+    groups:
+      npm: { patterns: ["*"] }
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule: { interval: "weekly" }
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule: { interval: "weekly" }
+  - package-ecosystem: "terraform"
+    directory: "/infra/oracle"
+    schedule: { interval: "monthly" }
