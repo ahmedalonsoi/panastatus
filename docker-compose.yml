@@ -19,14 +19,16 @@ x-app: &app
     # Solo las métricas HTTP del estándar estable (http_server_request_duration_seconds).
     OTEL_SEMCONV_STABILITY_OPT_IN: http
   depends_on:
-    db:
-      condition: service_healthy
+    # Arranca solo cuando las migraciones terminaron bien (esquema al día).
+    migrate:
+      condition: service_completed_successfully
   restart: unless-stopped
   stop_signal: SIGINT  # Python lo recibe como KeyboardInterrupt y cierra limpio
 
 services:
   db:
-    image: timescale/timescaledb:latest-pg17
+    # Versión fija: una actualización de la DB se hace a propósito, nunca por accidente.
+    image: timescale/timescaledb:2.32.1-pg17
     # Desactiva la telemetría que TimescaleDB envía a sus servidores por defecto.
     command: ["postgres", "-c", "timescaledb.telemetry_level=off"]
     environment:
@@ -35,7 +37,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d:ro
     # Solo en 127.0.0.1: accesible desde tu PC, NO desde la red/internet.
     ports:
       - "127.0.0.1:5432:5432"
@@ -45,6 +46,22 @@ services:
       timeout: 3s
       retries: 20
     restart: unless-stopped
+
+  # Tarea única: aplica las migraciones pendientes (db/migrate.sh) y termina.
+  migrate:
+    image: timescale/timescaledb:2.32.1-pg17
+    entrypoint: ["/bin/sh", "/db/migrate.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+    volumes:
+      - ./db:/db:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
 
   worker:
     <<: *app

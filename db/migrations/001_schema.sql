@@ -1,7 +1,6 @@
--- Esquema de PanaStatus.
--- PostgreSQL ejecuta este archivo automáticamente la PRIMERA vez que arranca el contenedor
--- (todo lo que esté en /docker-entrypoint-initdb.d). Si cambias el esquema después, hay que
--- aplicar el cambio a mano o recrear el volumen (docker compose down -v; borra los datos).
+-- Esquema inicial de PanaStatus.
+-- Lo aplica db/migrate.sh (servicio "migrate" de docker compose) una sola vez; los cambios
+-- posteriores van en archivos nuevos (002_..., 003_...), nunca editando uno ya aplicado.
 
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
