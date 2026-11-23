@@ -1,0 +1,14 @@
+# Todo el texto se guarda en el repo con saltos de línea LF (estilo Linux).
+# El servidor y los contenedores son Linux: un script con CRLF (Windows) falla con
+# errores raros como "/bin/sh^M: bad interpreter".
+* text=auto eol=lf
+
+# Scripts de Windows sí necesitan CRLF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binarios: git no debe tocarlos.
+*.png binary
+*.jpg binary
+*.ico binary
+*.pbix binary
