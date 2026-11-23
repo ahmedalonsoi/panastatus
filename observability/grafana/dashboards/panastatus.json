@@ -294,7 +294,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(panastatus_checks_total{result=\"fail\"}[1h])) / sum(rate(panastatus_checks_total[1h]))",
+          "expr": "(sum(rate(panastatus_checks_total{result=\"fail\"}[1h])) or vector(0)) / sum(rate(panastatus_checks_total[1h]))",
           "refId": "A",
           "legendFormat": "",
           "instant": true,
