@@ -1,0 +1,85 @@
+#cloud-config
+# Preparación del servidor en el PRIMER arranque (cloud-init).
+# Es una plantilla de OpenTofu: lo que va entre "dólar-llave" se sustituye al aplicar
+# (la clave SSH). Un "$(...)" o "$VAR" de shell pasa tal cual.
+#
+# Resultado: Ubuntu actualizado, Docker + Compose, usuario "deploy" sin contraseña (solo
+# clave SSH), SSH endurecido, fail2ban, actualizaciones de seguridad automáticas y
+# firewall que solo deja pasar 22, 80 y 443.
+
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - fail2ban
+  - unattended-upgrades
+  - iptables-persistent
+
+users:
+  - default
+  - name: deploy
+    gecos: PanaStatus deploy
+    shell: /bin/bash
+    lock_passwd: true # sin contraseña: solo clave SSH
+    # El grupo docker aún no existe aquí; se agrega en runcmd tras instalar Docker.
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+write_files:
+  # SSH: sin contraseñas, sin root.
+  - path: /etc/ssh/sshd_config.d/10-hardening.conf
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      MaxAuthTries 3
+      X11Forwarding no
+  # fail2ban: bloquea 1 h las IPs con 5 intentos SSH fallidos en 10 min.
+  - path: /etc/fail2ban/jail.d/sshd.local
+    content: |
+      [sshd]
+      enabled = true
+      maxretry = 5
+      findtime = 10m
+      bantime = 1h
+  # Actualizaciones de seguridad automáticas (reinicia a las 4 a. m. si hace falta).
+  - path: /etc/apt/apt.conf.d/52panastatus-upgrades
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+  # Logs de Docker con rotación: sin esto los logs pueden llenar el disco.
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "20m", "max-file": "5" },
+        "live-restore": true
+      }
+
+runcmd:
+  # --- Docker desde el repositorio oficial (versión actual, no la de Ubuntu) ---
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - usermod -aG docker deploy
+  - systemctl enable --now docker
+
+  # --- Firewall del sistema ---
+  # Las imágenes Ubuntu de Oracle traen reglas iptables que RECHAZAN todo salvo SSH.
+  # Abrimos 80/443 (TCP) y 443 (UDP, HTTP/3) antes de esa regla y lo guardamos.
+  - iptables -I INPUT 5 -p tcp --dport 80 -m state --state NEW -j ACCEPT
+  - iptables -I INPUT 5 -p tcp --dport 443 -m state --state NEW -j ACCEPT
+  - iptables -I INPUT 5 -p udp --dport 443 -j ACCEPT
+  - netfilter-persistent save
+
+  # --- Servicios ---
+  - systemctl restart ssh
+  - systemctl enable --now fail2ban
+  - mkdir -p /opt/panastatus
+  - chown deploy:deploy /opt/panastatus
+
+final_message: "PanaStatus: servidor listo tras $UPTIME segundos."
