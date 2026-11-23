@@ -1,0 +1,21 @@
+# Prometheus recibe las métricas por OTLP (push desde Alloy), así que casi no hace
+# "scrape". Solo se raspa a sí mismo y a Alloy para vigilar la propia tubería.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+# OpenTelemetry manda los atributos del "resource" (service.name...) aparte.
+# Estos se copian como etiquetas en cada serie para poder filtrar por ellos.
+otlp:
+  promote_resource_attributes:
+    - service.namespace
+    - service.name
+    - service.version
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]

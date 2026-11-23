@@ -1,0 +1,97 @@
+// Grafana Alloy: el "recolector" de telemetría. Recibe y reenvía; no guarda nada.
+//
+//   métricas: apps (OTLP) ──► Alloy ──► Prometheus (OTLP nativo)
+//   logs:     stdout de cada contenedor ──► Alloy ──► Loki
+//
+// Sintaxis: cada bloque es un componente; "forward_to"/"output" los conecta como tuberías.
+
+// ---------------------------------------------------------------- MÉTRICAS
+
+// Recibe OTLP por HTTP en :4318 (el SDK de Python usa OTEL_EXPORTER_OTLP_ENDPOINT).
+otelcol.receiver.otlp "apps" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Agrupa los datos en lotes: menos peticiones a Prometheus.
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.otlphttp.prometheus.input]
+  }
+}
+
+// Prometheus 3 acepta OTLP directamente (--web.enable-otlp-receiver).
+otelcol.exporter.otlphttp "prometheus" {
+  client {
+    endpoint = "http://prometheus:9090/api/v1/otlp"
+    tls {
+      insecure = true // red interna de Docker, nunca sale del servidor
+    }
+  }
+}
+
+// ---------------------------------------------------------------- LOGS
+
+// Descubre los contenedores de ESTE proyecto de Compose a través del socket de Docker.
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=" + sys.env("COMPOSE_PROJECT")]
+  }
+}
+
+// Etiquetas útiles para filtrar en Grafana: {service="worker"}.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.containers.output
+  relabel_rules = discovery.relabel.containers.rules
+  forward_to    = [loki.process.json.receiver]
+}
+
+// Nuestros logs son JSON (logging_setup.py): extraemos el nivel como etiqueta para poder
+// filtrar {level="error"}. El resto de campos se consulta con "| json" en LogQL.
+// Ojo: NO convertimos service_id en etiqueta; cada valor distinto crea un índice nuevo en
+// Loki ("cardinalidad"), y con muchos valores Loki se vuelve lento y caro.
+loki.process "json" {
+  stage.json {
+    expressions = { level = "level" }
+  }
+  // Cada programa escribe el nivel distinto (INFO, info, warn...): lo normalizamos.
+  stage.template {
+    source   = "level"
+    template = "{{ ToLower .Value }}"
+  }
+  stage.replace {
+    source     = "level"
+    expression = "^(warn)$"
+    replace    = "warning"
+  }
+  stage.labels {
+    values = { level = "" }
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

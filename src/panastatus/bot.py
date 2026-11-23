@@ -29,9 +29,10 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
+    TypeHandler,
 )
 
-from panastatus import db
+from panastatus import db, telemetry
 from panastatus.config import PANAMA_TZ, get_settings, load_monitor_config
 from panastatus.logging_setup import configure_logging
 from panastatus.notifier import format_duration
@@ -313,12 +314,24 @@ async def post_shutdown(app: Application) -> None:
         await pool.close()
 
 
+async def count_command(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Cuenta cada comando para la métrica panastatus_bot_commands_total. Corre en el
+    grupo -1 (antes que los handlers normales) y no corta el flujo."""
+    if isinstance(update, Update) and update.effective_message:
+        text = update.effective_message.text or ""
+        if text.startswith("/"):
+            # "/estado@PanaStatusBot utp" -> "estado"
+            command = text.split()[0][1:].split("@")[0].lower()[:32]
+            telemetry.bot_commands.add(1, {"command": command})
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     log.error("error en el bot", exc_info=context.error)
 
 
 def main() -> None:
     configure_logging()
+    telemetry.setup("bot")
     settings = get_settings()
     if not settings.telegram_bot_token:
         log.warning("TELEGRAM_BOT_TOKEN no definido; el bot no arranca.")
@@ -331,6 +344,7 @@ def main() -> None:
         .post_shutdown(post_shutdown)
         .build()
     )
+    app.add_handler(TypeHandler(Update, count_command), group=-1)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", start))
     app.add_handler(CommandHandler("servicios", servicios))

@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: PanaStatus
+    folder: PanaStatus
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false # el dashboard se cambia en git, no en la interfaz
+    options:
+      path: /var/lib/grafana/dashboards

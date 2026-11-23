@@ -1,0 +1,17 @@
+# Grafana arranca ya conectado a Prometheus y Loki ("provisioning": configuración como
+# código; nada se configura a mano en la interfaz, todo es reproducible).
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 15s
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
