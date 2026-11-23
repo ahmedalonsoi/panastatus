@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     slow_consecutive: int = Field(2, ge=1)
     request_timeout_seconds: float = Field(15.0, gt=0)
 
+    # Post-mortems con IA (Fase 4). Sin clave, la función queda apagada.
+    anthropic_api_key: str | None = None
+    postmortem_model: str = "claude-opus-5-5"
+    # Solo incidentes de al menos estos minutos generan borrador.
+    postmortem_min_minutes: int = Field(15, ge=1)
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:

@@ -258,8 +258,11 @@ async def list_incidents(
         SELECT i.id, i.service_id, s.name AS service_name, i.started_at, i.resolved_at,
                EXTRACT(EPOCH FROM coalesce(i.duration, now() - i.started_at))::int
                    AS duration_seconds,
-               i.cause
-        FROM incidents i JOIN services s ON s.id = i.service_id
+               i.cause,
+               pm.draft AS postmortem   -- solo si el admin lo aprobó
+        FROM incidents i
+        JOIN services s ON s.id = i.service_id
+        LEFT JOIN postmortems pm ON pm.incident_id = i.id AND pm.status = 'approved'
         WHERE ($2::text IS NULL OR i.service_id = $2)
         ORDER BY i.started_at DESC
         LIMIT $1
@@ -304,3 +307,122 @@ async def set_muted_until(pool: asyncpg.Pool, chat_id: int, until: datetime | No
         "UPDATE subscribers SET muted_until = $2 WHERE chat_id = $1", chat_id, until
     )
     return status != "UPDATE 0"
+
+
+# ---------------------------------------------------------------------------
+# Post-mortems (Fase 4)
+# ---------------------------------------------------------------------------
+
+
+async def get_incident(pool: asyncpg.Pool, incident_id: int) -> asyncpg.Record | None:
+    return await pool.fetchrow(
+        """
+        SELECT i.id, i.service_id, s.name AS service_name, s.category, s.url,
+               i.started_at, i.resolved_at, i.duration, i.cause
+        FROM incidents i JOIN services s ON s.id = i.service_id
+        WHERE i.id = $1
+        """,
+        incident_id,
+    )
+
+
+async def incident_timeline(
+    pool: asyncpg.Pool, service_id: str, start: datetime, end: datetime
+) -> list[asyncpg.Record]:
+    """Revisiones agrupadas en tramos de 5 min alrededor del incidente."""
+    return await pool.fetch(
+        """
+        SELECT time_bucket(INTERVAL '5 minutes', time) AS bucket,
+               count(*)                       AS total,
+               count(*) FILTER (WHERE NOT ok) AS failures,
+               avg(latency_ms) FILTER (WHERE ok)::int AS avg_latency_ms,
+               array_remove(array_agg(DISTINCT status_code), NULL) AS status_codes
+        FROM checks
+        WHERE service_id = $1 AND time BETWEEN $2 AND $3
+        GROUP BY bucket ORDER BY bucket
+        """,
+        service_id,
+        start,
+        end,
+    )
+
+
+async def incident_errors(
+    pool: asyncpg.Pool, service_id: str, start: datetime, end: datetime
+) -> list[asyncpg.Record]:
+    """Mensajes de error distintos durante el incidente, con cuántas veces aparecieron."""
+    return await pool.fetch(
+        """
+        SELECT error, status_code, count(*) AS times, min(time) AS first_seen
+        FROM checks
+        WHERE service_id = $1 AND time BETWEEN $2 AND $3 AND NOT ok
+        GROUP BY error, status_code ORDER BY times DESC LIMIT 10
+        """,
+        service_id,
+        start,
+        end,
+    )
+
+
+async def concurrent_failures(
+    pool: asyncpg.Pool, service_id: str, start: datetime, end: datetime
+) -> list[asyncpg.Record]:
+    """Otros servicios que también fallaron en la misma ventana. Si fallan muchos a la
+    vez, el problema probablemente es de red (incluso nuestra), no de un sitio."""
+    return await pool.fetch(
+        """
+        SELECT c.service_id, s.name,
+               count(*) FILTER (WHERE NOT c.ok) AS failures, count(*) AS total
+        FROM checks c JOIN services s ON s.id = c.service_id
+        WHERE c.service_id <> $1 AND c.time BETWEEN $2 AND $3
+        GROUP BY c.service_id, s.name
+        HAVING count(*) FILTER (WHERE NOT c.ok) > 0
+        ORDER BY failures DESC
+        """,
+        service_id,
+        start,
+        end,
+    )
+
+
+async def recent_incident_count(pool: asyncpg.Pool, service_id: str, before: datetime) -> int:
+    """Incidentes del mismo servicio en los 30 días previos (¿es recurrente?)."""
+    return await pool.fetchval(
+        """
+        SELECT count(*) FROM incidents
+        WHERE service_id = $1 AND started_at < $2 AND started_at > $2 - INTERVAL '30 days'
+        """,
+        service_id,
+        before,
+    )
+
+
+async def save_postmortem_draft(pool: asyncpg.Pool, incident_id: int, draft: str) -> int:
+    """Guarda (o reemplaza) el borrador. Regenerar vuelve a dejarlo pendiente de revisión."""
+    return await pool.fetchval(
+        """
+        INSERT INTO postmortems (incident_id, draft) VALUES ($1, $2)
+        ON CONFLICT (incident_id) DO UPDATE
+            SET draft = EXCLUDED.draft, status = 'draft', created_at = now(),
+                reviewed_at = NULL
+        RETURNING id
+        """,
+        incident_id,
+        draft,
+    )
+
+
+async def review_postmortem(
+    pool: asyncpg.Pool, postmortem_id: int, approved: bool
+) -> asyncpg.Record | None:
+    """Aprueba o rechaza un borrador PENDIENTE. Devuelve None si no existe o ya se revisó
+    (evita que un doble clic lo cambie dos veces)."""
+    return await pool.fetchrow(
+        """
+        UPDATE postmortems SET status = $2, reviewed_at = now()
+        WHERE id = $1 AND status = 'draft'
+        RETURNING id, incident_id, status
+        """,
+        postmortem_id,
+        "approved" if approved else "rejected",
+    )
