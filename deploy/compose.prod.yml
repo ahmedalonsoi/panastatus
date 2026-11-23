@@ -31,7 +31,10 @@ services:
     ports: !reset []
 
   db:
-    ports: !reset []
+    # Solo en la interfaz local del servidor (127.0.0.1): inaccesible desde internet.
+    # Sirve para conectar Power BI a través de un túnel SSH (docs/powerbi.md).
+    ports: !override
+      - "127.0.0.1:5432:5432"
     deploy:
       resources:
         limits:
