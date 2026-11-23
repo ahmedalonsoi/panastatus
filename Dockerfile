@@ -18,7 +18,6 @@ RUN uv sync --frozen --no-dev --no-install-project
 # 2) Luego el código
 COPY src ./src
 COPY config ./config
-COPY web ./web
 RUN uv sync --frozen --no-dev
 
 # No correr como root dentro del contenedor

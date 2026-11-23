@@ -17,10 +17,11 @@ from __future__ import annotations
 from datetime import timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
 import yaml
-from pydantic import BaseModel, Field, HttpUrl, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from panastatus import __version__
 
@@ -46,6 +47,9 @@ class Settings(BaseSettings):
     monitor_contact: str = ""
     public_url: str = "http://localhost:8000"
     services_file: Path = Path("config/services.yaml")
+    # Orígenes con permiso CORS (solo desarrollo), separados por coma en el .env:
+    # CORS_ORIGINS=http://localhost:3000
+    cors_origins: Annotated[list[str], NoDecode] = []
 
     # Caída confirmada = N fallas seguidas. Con 2 evitamos falsas alarmas por un
     # timeout aislado (un paquete perdido, un reinicio rápido del servidor, etc.).
@@ -54,17 +58,24 @@ class Settings(BaseSettings):
     slow_consecutive: int = Field(2, ge=1)
     request_timeout_seconds: float = Field(15.0, gt=0)
 
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [o.strip() for o in value.split(",") if o.strip()]
+        return value
+
     @property
     def user_agent(self) -> str:
         """User-Agent identificable, con la convención de los bots profesionales
         (como Googlebot): "+URL" apunta a una página que explica qué es el bot y cómo
         pedir la exclusión, y además va el correo de contacto directo.
 
-        Ejemplo: PanaStatusBot/0.1 (+https://panastatus.com/bot.html; contacto@...)
+        Ejemplo: PanaStatusBot/0.1 (+https://panastatus.com/bot/; contacto@...)
         """
         contact = self.monitor_contact or "sin-contacto"
         base = self.public_url.rstrip("/")
-        return f"PanaStatusBot/{__version__} (+{base}/bot.html; {contact})"
+        return f"PanaStatusBot/{__version__} (+{base}/bot/; {contact})"
 
 
 class ServiceConfig(BaseModel):

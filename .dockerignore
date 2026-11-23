@@ -1,0 +1,14 @@
+# Lo que NUNCA entra al contexto de "docker build" (más rápido y sin filtrar secretos).
+.git
+.env
+.env.*
+!.env.example
+.venv
+**/__pycache__
+.pytest_cache
+.ruff_cache
+frontend/node_modules
+frontend/.next
+frontend/out
+infra
+**/*.tfstate*
