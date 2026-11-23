@@ -27,7 +27,7 @@ import time
 import asyncpg
 import httpx
 
-from panastatus import db, telemetry
+from panastatus import db, postmortem, telemetry
 from panastatus.checker import CheckResult, build_client, check_service
 from panastatus.config import ServiceConfig, Settings, get_settings, load_monitor_config
 from panastatus.logging_setup import configure_logging
@@ -35,6 +35,10 @@ from panastatus.notifier import Notifier
 from panastatus.state import evaluate
 
 log = logging.getLogger("panastatus.worker")
+
+# Tareas en segundo plano (post-mortems). Se guarda la referencia porque asyncio solo
+# mantiene referencias débiles: una tarea sin referencia puede desaparecer a medias.
+_background: set[asyncio.Task] = set()
 
 
 async def process_result(
@@ -77,6 +81,13 @@ async def process_result(
     )
     if event:
         await notifier.notify(event, service, result, incident)
+    if event == "recovered" and postmortem.should_draft(incident, settings):
+        # En segundo plano: la IA tarda unos segundos y el bucle de revisiones no espera.
+        task = asyncio.create_task(
+            postmortem.generate_and_send(pool, notifier, settings, incident["id"])
+        )
+        _background.add(task)
+        task.add_done_callback(_background.discard)
 
 
 def _record_metrics(

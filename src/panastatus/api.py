@@ -86,6 +86,7 @@ class IncidentOut(BaseModel):
     resolved_at: datetime | None
     duration_seconds: int
     cause: str | None
+    postmortem: str | None = None  # análisis aprobado por el admin (Fase 4)
 
 
 # --- Aplicación ---

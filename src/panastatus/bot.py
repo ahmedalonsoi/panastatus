@@ -314,6 +314,35 @@ async def post_shutdown(app: Application) -> None:
         await pool.close()
 
 
+# ---------------------------------------------------------------------------
+# Revisión de post-mortems (solo admin)
+#   callback_data:  "pm:ok:<id>"  |  "pm:no:<id>"
+# ---------------------------------------------------------------------------
+
+
+async def on_postmortem_review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    admin = get_settings().admin_chat_id
+    # Solo el chat del admin puede aprobar. El mensaje solo se le envía a él, pero se
+    # verifica igual: nunca confiar en que un botón llegue solo a quien debe.
+    if admin is None or update.effective_chat.id != admin:
+        await query.answer("Solo el administrador puede revisar post-mortems.", show_alert=True)
+        return
+    _, action, raw_id = (query.data or "").split(":", 2)
+    result = await db.review_postmortem(pool_of(context), int(raw_id), action == "ok")
+    if result is None:
+        await query.answer("Ese borrador ya fue revisado.", show_alert=True)
+        return
+    approved = result["status"] == "approved"
+    await query.answer("Publicado" if approved else "Descartado")
+    footer = (
+        "\n\n✅ <b>Publicado</b> en la página de incidentes." if approved else "\n\n❌ Descartado."
+    )
+    await query.edit_message_text(
+        html.escape(query.message.text or "") + footer, parse_mode=ParseMode.HTML
+    )
+
+
 async def count_command(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Cuenta cada comando para la métrica panastatus_bot_commands_total. Corre en el
     grupo -1 (antes que los handlers normales) y no corta el flujo."""
@@ -352,6 +381,8 @@ def main() -> None:
     app.add_handler(CommandHandler("missuscripciones", missuscripciones))
     app.add_handler(CommandHandler("silencio", silencio))
     app.add_handler(CommandHandler("stop", stop))
+    # El de post-mortems va antes: on_button atiende todo lo demás.
+    app.add_handler(CallbackQueryHandler(on_postmortem_review, pattern=r"^pm:(ok|no):\d+$"))
     app.add_handler(CallbackQueryHandler(on_button))
     app.add_error_handler(on_error)
 

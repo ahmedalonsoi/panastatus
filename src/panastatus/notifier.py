@@ -93,7 +93,7 @@ class Notifier:
             await self.send(chat_id, text)
             await asyncio.sleep(0.05)  # Telegram permite ~30 mensajes/s; vamos holgados
 
-    async def send(self, chat_id: int, text: str) -> None:
+    async def send(self, chat_id: int, text: str, reply_markup: dict | None = None) -> None:
         token = self.settings.telegram_bot_token
         if not token:
             log.info("telegram desactivado; aviso solo en log", extra={"text": text})
@@ -106,6 +106,8 @@ class Notifier:
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
         }
+        if reply_markup:
+            payload["reply_markup"] = reply_markup  # botones (p. ej. aprobar post-mortem)
         for attempt in range(3):
             try:
                 response = await self.client.post(url, json=payload)
