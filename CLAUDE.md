@@ -14,11 +14,12 @@ Yo (Ahmed) debo entender cada pieza: explica las decisiones importantes y deja e
 
 ## Stack
 Python 3.12 + uv, asyncio, httpx, Pydantic · FastAPI · python-telegram-bot · PostgreSQL + TimescaleDB ·
-Front: Astro o Next.js + Tailwind · OpenTelemetry → Grafana Alloy → Prometheus + Loki → Grafana ·
-Docker Compose + Caddy (HTTPS) · GitHub Actions + GHCR + Ruff + pytest · OpenTofu · Oracle Cloud o Azure · Power BI para reportes.
+Front: Next.js + TypeScript + Tailwind (export estático servido por Caddy) · OpenTelemetry → Grafana Alloy → Prometheus + Loki → Grafana ·
+Docker Compose + Caddy (HTTPS) · GitHub Actions + GHCR + Ruff + pytest · OpenTofu · Oracle Cloud Always Free (ARM) · Power BI para reportes · API de Claude (post-mortems).
 
 ## Tablas
 services, checks (hypertable), incidents, postmortems, subscribers (solo chat_id y suscripciones).
+Esquema `reporting` (vistas para Power BI, rol powerbi_reader). Cambios de esquema: nueva migración en db/migrations/ (nunca editar una aplicada).
 
 ## Reglas
 - Monitoreo responsable: solo páginas públicas, sin login, 1 petición cada 1–5 min, User-Agent identificable con contacto.
@@ -30,3 +31,12 @@ Fase 1 Base: checker + PostgreSQL/TimescaleDB + Docker Compose + alertas al admi
 Fase 2 Producto: bot con suscripciones, API, página pública.
 Fase 3 Producción: nube con OpenTofu, CI/CD, HTTPS, observabilidad interna. → Lanzamiento público.
 Fase 4 Análisis: post-mortems con IA, Power BI, README.
+
+## Estado (2026-11-23)
+Fases 1–4 implementadas en código. Pendiente (requiere al dueño): comprar dominio, cuenta Oracle Cloud + `tofu apply`,
+repo en GitHub con secretos, primer despliegue, ANTHROPIC_API_KEY, armar el .pbix en Power BI. Ver docs/despliegue.md.
+
+## Convenciones de trabajo
+- Una rama por cambio, commits convencionales en español (feat:, fix:, chore:...), merge --no-ff a main. Sin push sin permiso.
+- Antes de commit: `uv run ruff check . && uv run ruff format . && uv run pytest` y, si se tocó frontend/, `npm run lint && npm run build`.
+- Versiones fijadas (imágenes, acciones por SHA, npm save-exact).
