@@ -30,3 +30,6 @@ crash.log
 
 # Copias de seguridad de la base de datos (servidor)
 backups/
+
+# Exportaciones CSV de reportes (datos, no código)
+reports/
