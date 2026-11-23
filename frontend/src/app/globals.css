@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de diseño. Los colores se definen UNA vez aquí y Tailwind los expone como
+ * clases (bg-surface, text-muted, bg-status-up...). El modo oscuro redefine los mismos
+ * tokens: los componentes no cambian.
+ *
+ * Colores de estado: paleta fija (verde / ámbar / rojo). Nunca llevan el significado
+ * solos: siempre van con ícono y texto ("Operativo", "Caído"), por accesibilidad para
+ * personas con daltonismo.
+ */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #16191f;
+  --muted: #5b6270;
+  --line: #e3e6eb;
+  --empty: #e6e9ee;
+  --accent: #1f5fbf;
+  --status-up: #0ca30c;
+  --status-degraded: #fab219;
+  --status-down: #d03b3b;
+  --status-unknown: #9aa1ad;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101114;
+    --surface: #1a1a19;
+    --ink: #e8e9ec;
+    --muted: #a0a6b1;
+    --line: #2c2c2a;
+    --empty: #2a2c30;
+    --accent: #7aa7ff;
+    --status-unknown: #6b7280;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-empty: var(--empty);
+  --color-accent: var(--accent);
+  --color-status-up: var(--status-up);
+  --color-status-degraded: var(--status-degraded);
+  --color-status-down: var(--status-down);
+  --color-status-unknown: var(--status-unknown);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+a {
+  color: var(--accent);
+}

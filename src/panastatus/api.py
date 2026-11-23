@@ -9,7 +9,8 @@ Rutas:
     GET /api/uptime/daily               barra de 90 días de TODOS los servicios (1 petición)
     GET /api/incidents                  incidentes recientes
     GET /api/docs                       documentación interactiva (Swagger), gratis con FastAPI
-    GET /                               página pública de estado (web/index.html)
+
+La página pública (Next.js, carpeta frontend/) la sirve Caddy, no esta API.
 
 Límite de peticiones: 60 por minuto por IP (slowapi). Protege la DB de abusos.
 """
@@ -18,13 +19,12 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import date, datetime
-from pathlib import Path
 from typing import Annotated
 
 import asyncpg
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -33,9 +33,6 @@ from slowapi.util import get_remote_address
 
 from panastatus import __version__, db
 from panastatus.config import get_settings, load_monitor_config
-
-WEB_DIR = Path(__file__).resolve().parents[2] / "web"
-
 
 # --- Modelos de respuesta: documentan la API en /api/docs y filtran qué se expone ---
 
@@ -118,6 +115,15 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
+# CORS: en producción la página y la API comparten dominio y no hace falta. En desarrollo
+# la página corre en localhost:3000 (npm run dev) y la API en :8000, así que el navegador
+# exige permiso explícito. Solo GET: la API es de solo lectura.
+_cors = get_settings().cors_origins
+if _cors:
+    app.add_middleware(
+        CORSMiddleware, allow_origins=_cors, allow_methods=["GET"], allow_headers=["*"]
+    )
+
 
 def get_pool(request: Request) -> asyncpg.Pool:
     return request.app.state.pool
@@ -144,7 +150,7 @@ async def health(pool: Pool):
 
 @app.get("/api/about", tags=["sistema"])
 async def about():
-    """Identidad del bot (la usa la página /bot.html). Sale de la misma configuración que
+    """Identidad del bot (la usa la página /bot/). Sale de la misma configuración que
     el checker, así la página y el User-Agent real nunca se contradicen."""
     settings = get_settings()
     return {"contact": settings.monitor_contact, "user_agent": settings.user_agent}
@@ -201,8 +207,3 @@ async def incidents(
     service_id: str | None = None,
 ):
     return [dict(r) for r in await db.list_incidents(pool, limit, service_id)]
-
-
-# La página pública se monta AL FINAL para que no tape las rutas /api.
-if WEB_DIR.exists():
-    app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")

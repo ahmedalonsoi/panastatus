@@ -1,5 +1,5 @@
 # Uso:
-#   docker compose up -d --build     # levantar todo
+#   docker compose up -d --build     # levantar todo → página en http://localhost:8080
 #   docker compose logs -f worker    # ver el checker en vivo
 #   docker compose down              # detener (los datos quedan en el volumen)
 #
@@ -54,6 +54,20 @@ services:
       - --forwarded-allow-ips=*
     ports:
       - "127.0.0.1:8000:8000"
+
+  # Caddy + página estática (Next.js). En local escucha en :8080 sin HTTPS.
+  # En producción (deploy/compose.prod.yml) escucha en 80/443 con certificado real.
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      SITE_ADDRESS: ":80"
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
 
   bot:
     <<: *app

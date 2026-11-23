@@ -14,7 +14,7 @@
 #   slow_threshold_ms latencia a partir de la cual se considera "lento" (default 3000).
 #   enabled          false para pausarlo sin borrarlo.
 #
-# Solicitudes de exclusión (prometidas en /bot.html: máximo 48 h):
+# Solicitudes de exclusión (prometidas en /bot/: máximo 48 h):
 #   poner enabled: false y dejar un comentario con la fecha y el motivo, por ejemplo:
 #     enabled: false  # excluido a solicitud del sitio, 2026-11-23
 #   No borres la entrada: así queda registro y se conserva el historial en la DB.
