@@ -52,27 +52,29 @@ variable "admin_cidr" {
 }
 
 # ---------------------------------------------------------------------------
-# Servidor (Ampere A1, ARM). Always Free permite en total 4 OCPU y 24 GB de RAM.
+# Servidor (Ampere A1, ARM). Desde el 18-ago-2026, Always Free permite en total
+# 2 OCPU y 12 GB de RAM (antes 4 y 24). Si se excede, Oracle DESACTIVA todas las
+# instancias A1 y las borra a los 30 días, así que el límite se valida aquí.
 # ---------------------------------------------------------------------------
 variable "instance_ocpus" {
-  description = "Núcleos ARM (Always Free: hasta 4 en total)."
+  description = "Núcleos ARM (Always Free: hasta 2 en total)."
   type        = number
   default     = 2
 
   validation {
-    condition     = var.instance_ocpus >= 1 && var.instance_ocpus <= 4
-    error_message = "Entre 1 y 4 OCPU para no salir del plan Always Free."
+    condition     = var.instance_ocpus >= 1 && var.instance_ocpus <= 2
+    error_message = "Entre 1 y 2 OCPU para no salir del plan Always Free."
   }
 }
 
 variable "instance_memory_gb" {
-  description = "RAM en GB (Always Free: hasta 24 en total)."
+  description = "RAM en GB (Always Free: hasta 12 en total)."
   type        = number
   default     = 12
 
   validation {
-    condition     = var.instance_memory_gb >= 6 && var.instance_memory_gb <= 24
-    error_message = "Entre 6 y 24 GB para no salir del plan Always Free."
+    condition     = var.instance_memory_gb >= 6 && var.instance_memory_gb <= 12
+    error_message = "Entre 6 y 12 GB para no salir del plan Always Free."
   }
 }
 
