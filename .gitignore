@@ -18,3 +18,11 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+
+# OpenTofu: estado (contiene secretos), variables con credenciales y caché de proveedores
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
