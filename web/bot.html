@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PanaStatusBot — Información para administradores de sitios</title>
+<meta name="description" content="Qué es PanaStatusBot, qué peticiones hace, cuánto tráfico genera y cómo solicitar la exclusión.">
+<!--
+  Esta página es el destino del enlace "+URL" en el User-Agent del checker.
+  La leen los equipos de TI que ven a PanaStatusBot en sus logs. Objetivo: que en
+  30 segundos sepan qué es, que es inofensivo y cómo contactarnos o excluirse.
+-->
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#16191f; --muted:#5f6672; --line:#e3e6eb; --accent:#1f5fbf; --code:#eef1f5; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1115; --card:#171a20; --text:#e7e9ee; --muted:#9aa1ad; --line:#272b33; --accent:#6aa1ff; --code:#22262e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  h1 span { color:var(--accent); }
+  h2 { font-size:1.15rem; margin:32px 0 8px; }
+  .lead { color:var(--muted); margin:0 0 24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 20px; }
+  code, pre { background:var(--code); border-radius:6px; font:.85rem/1.5 ui-monospace,Consolas,monospace; }
+  code { padding:1px 5px; }
+  pre { padding:12px 14px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; }
+  table { width:100%; border-collapse:collapse; font-size:.95rem; }
+  td { padding:8px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  td:first-child { color:var(--muted); width:42%; padding-right:12px; }
+  tr:last-child td { border-bottom:0; }
+  .contact { font-size:1.1rem; font-weight:600; }
+  a { color:var(--accent); }
+  ul { padding-left:20px; }
+  #sites { columns:2; column-gap:24px; font-size:.9rem; }
+  @media (max-width:520px) { #sites { columns:1; } }
+  #sites li { break-inside:avoid; }
+  .muted { color:var(--muted); font-size:.85rem; }
+  hr { border:0; border-top:1px solid var(--line); margin:40px 0 24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pana<span>Status</span>Bot</h1>
+  <p class="lead">Información para administradores de sitios web que ven este bot en sus registros.</p>
+
+  <div class="card">
+    <p style="margin-top:0"><strong>PanaStatusBot es un monitor de disponibilidad público y sin fines de lucro.</strong>
+    Comprueba si la página de inicio de servicios web usados en Panamá (bancos, entidades de gobierno,
+    universidades y servicios globales) está en línea, y publica el resultado en
+    <a href="/">una página de estado</a> para que la ciudadanía sepa si un problema es general o solo suyo.</p>
+    <p style="margin-bottom:0">No es un rastreador (crawler), no busca vulnerabilidades y no recopila contenido.</p>
+  </div>
+
+  <h2>Contacto</h2>
+  <p class="contact"><a id="mail" href="#">cargando…</a></p>
+  <p>Escríbanos ante cualquier duda, para solicitar la exclusión de su sitio o para pedir que
+  cambiemos la frecuencia o la URL revisada.</p>
+
+  <h2>Qué hace exactamente</h2>
+  <div class="card">
+    <table>
+      <tr><td>Peticiones</td><td>Una sola petición <code>GET</code> a una URL pública (normalmente la página de inicio). Nunca inicia sesión ni envía formularios.</td></tr>
+      <tr><td>Frecuencia</td><td>Una petición cada 1 a 5 minutos por sitio (normalmente cada 3 minutos), unas 480 al día como máximo.</td></tr>
+      <tr><td>Contenido descargado</td><td>Ninguno. Solo se leen los encabezados de la respuesta y se cierra la conexión.</td></tr>
+      <tr><td>Qué se mide</td><td>Código de estado HTTP, tiempo de respuesta y fecha de vencimiento del certificado TLS (leída de la misma conexión, sin peticiones extra).</td></tr>
+      <tr><td>Otras páginas</td><td>No sigue enlaces ni rastrea el sitio. Solo sigue redirecciones HTTP (máx. 5).</td></tr>
+      <tr><td>Datos publicados</td><td>Disponibilidad, latencia e incidentes de caída. Nada del contenido del sitio.</td></tr>
+    </table>
+  </div>
+
+  <h2>Cómo identificarlo</h2>
+  <p>Todas las peticiones llevan este User-Agent:</p>
+  <pre id="ua">PanaStatusBot/0.1 (+…/bot.html; …)</pre>
+
+  <h2>Solicitar la exclusión</h2>
+  <p>Si prefiere que su sitio no sea monitoreado, escriba al correo de contacto indicando el dominio.
+  <strong>Lo retiramos en un máximo de 48 horas</strong>, sin preguntas. Si lo prefiere, también podemos
+  reducir la frecuencia o revisar otra URL más liviana (por ejemplo, un endpoint de salud).</p>
+
+  <h2>Sitios monitoreados actualmente</h2>
+  <ul id="sites"><li class="muted">Cargando…</li></ul>
+  <p class="muted">La configuración completa es pública y se puede consultar en la <a href="/api/docs">API</a>.</p>
+
+  <hr>
+  <h2 style="margin-top:0">English summary</h2>
+  <p>PanaStatusBot is a non-profit public uptime monitor for websites used in Panama. It sends a single
+  <code>GET</code> request to one public URL per site every 1–5 minutes (≈480 requests/day at most), reads only
+  the response headers and TLS certificate expiry, and never logs in, crawls, or downloads page content.
+  To opt out or adjust the frequency, email the address above; removals are honored within 48 hours.</p>
+
+  <p class="muted" style="margin-top:40px"><a href="/">← Volver a la página de estado</a></p>
+</main>
+
+<script>
+// El correo y la URL se arman desde la configuración del servidor, así esta página nunca
+// queda desactualizada respecto al User-Agent real.
+fetch("/api/about").then((r) => r.json()).then((info) => {
+  const mail = document.getElementById("mail");
+  mail.textContent = info.contact;
+  mail.href = "mailto:" + info.contact;
+  document.getElementById("ua").textContent = info.user_agent;
+}).catch(() => {});
+
+fetch("/api/services").then((r) => r.json()).then((list) => {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  document.getElementById("sites").innerHTML = list
+    .map((s) => `<li>${esc(s.name)} — <span class="muted">${esc(new URL(s.url).host)}</span></li>`)
+    .join("");
+}).catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+# Servicios monitoreados por PanaStatus.
+#
+# Reglas de monitoreo responsable (validadas en código, ver src/panastatus/config.py):
+#   - Solo páginas públicas, sin login.
+#   - interval_seconds entre 60 y 300 (1 petición cada 1–5 min por servicio).
+#
+# Campos:
+#   id               identificador corto (minúsculas, números y guiones). No lo cambies después:
+#                    es la llave en la base de datos y en las suscripciones del bot.
+#   name             nombre visible.
+#   category         una de las llaves de "categories".
+#   url              página pública a revisar.
+#   interval_seconds cada cuánto se revisa (default 180).
+#   slow_threshold_ms latencia a partir de la cual se considera "lento" (default 3000).
+#   enabled          false para pausarlo sin borrarlo.
+#
+# Solicitudes de exclusión (prometidas en /bot.html: máximo 48 h):
+#   poner enabled: false y dejar un comentario con la fecha y el motivo, por ejemplo:
+#     enabled: false  # excluido a solicitud del sitio, 2026-11-23
+#   No borres la entrada: así queda registro y se conserva el historial en la DB.
+
+categories:
+  bancos: "🏦 Bancos"
+  gobierno: "🏛️ Gobierno"
+  educacion: "🎓 UTP y educación"
+  globales: "🌐 Servicios globales"
+
+services:
+  # --- Bancos ---
+  - id: banco-general
+    name: Banco General
+    category: bancos
+    url: https://www.bgeneral.com
+  - id: banistmo
+    name: Banistmo
+    category: bancos
+    url: https://www.banistmo.com
+  - id: bac-panama
+    name: BAC Panamá
+    category: bancos
+    url: https://www.baccredomatic.com/es-pa
+  - id: banconal
+    name: Banco Nacional de Panamá
+    category: bancos
+    url: https://www.banconal.com.pa
+  - id: caja-de-ahorros
+    name: Caja de Ahorros
+    category: bancos
+    url: https://www.cajadeahorros.com.pa
+  - id: global-bank
+    name: Global Bank
+    category: bancos
+    url: https://www.globalbank.com.pa
+
+  # --- Gobierno ---
+  - id: css
+    name: Caja de Seguro Social
+    category: gobierno
+    url: https://www.css.gob.pa
+  - id: tribunal-electoral
+    name: Tribunal Electoral
+    category: gobierno
+    url: https://www.tribunal-electoral.gob.pa
+  - id: dgi
+    name: DGI (MEF)
+    category: gobierno
+    url: https://dgi.mef.gob.pa
+  - id: panamacompra
+    name: PanamaCompra
+    category: gobierno
+    url: https://www.panamacompra.gob.pa
+  - id: minsa
+    name: MINSA
+    category: gobierno
+    url: https://www.minsa.gob.pa
+  - id: meduca
+    name: MEDUCA
+    category: gobierno
+    url: https://www.meduca.gob.pa
+
+  # --- Educación ---
+  - id: utp
+    name: UTP
+    category: educacion
+    url: https://utp.ac.pa
+  - id: up
+    name: Universidad de Panamá
+    category: educacion
+    url: https://www.up.ac.pa
+
+  # --- Globales (útiles para distinguir "se cayó X" de "se cayó internet") ---
+  - id: google
+    name: Google
+    category: globales
+    url: https://www.google.com
+  - id: github
+    name: GitHub
+    category: globales
+    url: https://github.com
+  - id: cloudflare
+    name: Cloudflare
+    category: globales
+    url: https://www.cloudflare.com
+  - id: microsoft365
+    name: Microsoft 365
+    category: globales
+    url: https://www.office.com

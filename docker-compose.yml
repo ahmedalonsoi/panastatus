@@ -1,0 +1,65 @@
+# Uso:
+#   docker compose up -d --build     # levantar todo
+#   docker compose logs -f worker    # ver el checker en vivo
+#   docker compose down              # detener (los datos quedan en el volumen)
+#
+# Los valores ${...} salen del archivo .env.
+
+x-app: &app
+  build: .
+  env_file: .env
+  environment:
+    # Dentro de la red de Docker la DB se llama "db", no "localhost".
+    DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+  stop_signal: SIGINT  # Python lo recibe como KeyboardInterrupt y cierra limpio
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg17
+    # Desactiva la telemetría que TimescaleDB envía a sus servidores por defecto.
+    command: ["postgres", "-c", "timescaledb.telemetry_level=off"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    # Solo en 127.0.0.1: accesible desde tu PC, NO desde la red/internet.
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "panastatus.worker"]
+
+  api:
+    <<: *app
+    command:
+      - uvicorn
+      - panastatus.api:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --proxy-headers           # detrás de Caddy (Fase 3) para ver la IP real del cliente
+      - --forwarded-allow-ips=*
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  bot:
+    <<: *app
+    command: ["python", "-m", "panastatus.bot"]
+    # Si no hay TELEGRAM_BOT_TOKEN el bot sale con código 0 y no se reinicia en bucle.
+    restart: on-failure
+
+volumes:
+  db_data:
