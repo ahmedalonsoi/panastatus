@@ -39,7 +39,7 @@ export function StatusPill({ status, latencyMs }: { status: Status; latencyMs?: 
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       {latencyMs != null && status !== "down" && (
-        <span className="hidden font-mono text-xs text-muted tabular-nums sm:inline">
+        <span className="hidden text-xs text-muted tabular-nums sm:inline">
           {latencyMs} ms
         </span>
       )}
