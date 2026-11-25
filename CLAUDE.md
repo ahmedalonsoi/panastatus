@@ -14,8 +14,8 @@ Yo (Ahmed) debo entender cada pieza: explica las decisiones importantes y deja e
 
 ## Stack
 Python 3.12 + uv, asyncio, httpx, Pydantic · FastAPI · python-telegram-bot · PostgreSQL + TimescaleDB ·
-Front: Next.js + TypeScript + Tailwind (export estático servido por Caddy) · OpenTelemetry → Grafana Alloy → Prometheus + Loki → Grafana ·
-Docker Compose + Caddy (HTTPS) · GitHub Actions + GHCR + Ruff + pytest · OpenTofu · Oracle Cloud Always Free (ARM) · Power BI para reportes · API de Claude (post-mortems).
+Front: Next.js + TypeScript + Tailwind + Vitest, Node 24 (export estático servido por Caddy) · OpenTelemetry → Grafana Alloy → Prometheus + Loki → Grafana ·
+Docker Compose + Caddy (HTTPS) · GitHub Actions + GHCR + Ruff + mypy + pytest (unitarias + integración con DB real) · OpenTofu · Oracle Cloud Always Free (ARM) · Power BI para reportes · API de Claude (post-mortems).
 
 ## Tablas
 services, checks (hypertable), incidents, postmortems, subscribers (solo chat_id y suscripciones).
@@ -32,12 +32,17 @@ Fase 2 Producto: bot con suscripciones, API, página pública.
 Fase 3 Producción: nube con OpenTofu, CI/CD, HTTPS, observabilidad interna. → Lanzamiento público.
 Fase 4 Análisis: post-mortems con IA, Power BI, README.
 
-## Estado (2026-11-24)
-Fases 1–4 implementadas en código. Decisión: **sin nube por ahora** (no hay acceso a la cuenta de Oracle). El proyecto se
-presenta como local con Docker Compose + capturas en el README (docs/img/). El código de OpenTofu/despliegue se conserva
-para retomarlo. Siguiente: repo en GitHub (sin desplegar; `DEPLOY_ENABLED` sin definir). Opcional: ANTHROPIC_API_KEY, .pbix.
+## Estado (2026-11-25)
+Fases 1–4 implementadas en código. **Sin nube por ahora** (sin acceso a Oracle): se presenta como local con Docker
+Compose + capturas en el README (docs/img/). Repo público: github.com/ahmedalonsoi/panastatus (commits con correo noreply).
+28 servicios activos; Educación incluye portales UTP (eCampus, Virtual, Matrícula), UP y otras 6 universidades.
+Universidad Latina pausada (cadena TLS incompleta). Documentación senior: docs/arquitectura.md, docs/slo.md,
+docs/adr/ (ADR 0001–0009), SECURITY.md, CONTRIBUTING.md, CHANGELOG.md.
+Opcional pendiente: ANTHROPIC_API_KEY, .pbix de Power BI, despliegue cuando haya nube.
 
 ## Convenciones de trabajo
 - Una rama por cambio, commits convencionales en español (feat:, fix:, chore:...), merge --no-ff a main. Sin push sin permiso.
-- Antes de commit: `uv run ruff check . && uv run ruff format . && uv run pytest` y, si se tocó frontend/, `npm run lint && npm run build`.
+- Antes de commit: `pre-commit run --all-files`, `uv run mypy`, `uv run pytest -m "not integration"` y, si se tocó frontend/,
+  `npm run lint && npm run typecheck && npm test && npm run build`. Decisiones importantes → ADR nuevo en docs/adr/.
+- Lockfile de npm: generarlo con Node 24 / npm 11 (en Linux, p. ej. `docker run node:24-alpine`), no con npm 10.
 - Versiones fijadas (imágenes, acciones por SHA, npm save-exact).

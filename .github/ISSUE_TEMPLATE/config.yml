@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Solicitar la exclusión de un sitio
+    url: mailto:panastatus.contacto@gmail.com
+    about: Si administras un sitio monitoreado y prefieres que no se revise. Se atiende en 48 horas.
+  - name: Reportar una vulnerabilidad
+    url: https://github.com/ahmedalonsoi/panastatus/security/advisories/new
+    about: De forma privada, nunca en un issue público.

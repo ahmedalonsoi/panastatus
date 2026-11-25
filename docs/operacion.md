@@ -23,7 +23,7 @@ Grafana (por túnel, ver `docs/despliegue.md`) → dashboard **PanaStatus — Op
 | Alerta | Qué significa | Qué hacer |
 |---|---|---|
 | **Checker sin revisiones** | El worker no registra revisiones desde hace 10 min | `dc ps worker` → `dc logs --tail=200 worker`. Si murió: `dc up -d worker`. Si la DB no responde: `dc logs db`. |
-| **Fallas masivas** | Más del 50 % de las revisiones fallan | Casi siempre es **nuestra** red o el DNS, no 18 sitios a la vez. Prueba en el servidor `curl -I https://www.google.com` y `resolvectl status`. No anuncies caídas hasta descartarlo. |
+| **Fallas masivas** | Más del 50 % de las revisiones fallan | Casi siempre es **nuestra** red o el DNS, no decenas de sitios a la vez. Prueba en el servidor `curl -I https://www.google.com` y `resolvectl status`. No anuncies caídas hasta descartarlo. |
 | **Envíos a Telegram fallando** | Telegram rechaza los mensajes | `dc logs worker \| grep telegram`. Un 401 indica que el token fue revocado: genera uno nuevo con @BotFather y actualiza `.env`. |
 
 ## Logs útiles (Grafana → Explore → Loki)
