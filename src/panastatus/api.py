@@ -97,7 +97,9 @@ async def lifespan(app: FastAPI):
     """Se ejecuta al arrancar y al apagar: abre y cierra el pool de conexiones."""
     settings = get_settings()
     app.state.pool = await db.create_pool(settings.database_url)
-    app.state.categories = load_monitor_config(settings.services_file).categories
+    monitor = load_monitor_config(settings.services_file)
+    app.state.categories = monitor.categories
+    app.state.service_order = {s.id: i for i, s in enumerate(monitor.services)}
     yield
     await app.state.pool.close()
 
@@ -180,20 +182,32 @@ async def summary(pool: Pool):
     return {"overall": overall, "counts": counts, "last_checked_at": last}
 
 
-def sort_by_category(rows: list, categories: dict[str, str]) -> list:
-    """Ordena por el orden de las categorías en services.yaml y luego por nombre.
+def sort_by_category(
+    rows: list, categories: dict[str, str], service_order: dict[str, int] | None = None
+) -> list:
+    """Ordena como en services.yaml: primero por categoría y luego por posición del servicio.
 
-    La DB ordena alfabéticamente por la llave de la categoría; aquí se respeta el orden
-    que eligió quien edita la configuración (así la página muestra Bancos, Gobierno,
-    Educación... y no "educacion" antes que "gobierno").
+    La DB ordena alfabéticamente por la llave de la categoría; aquí se respeta el orden que
+    eligió quien edita la configuración (Bancos, Gobierno, Educación...; y dentro de
+    Educación, la UTP y sus portales juntos). Lo que no esté en el YAML va al final, por nombre.
     """
-    order = {key: i for i, key in enumerate(categories)}
-    return sorted(rows, key=lambda r: (order.get(r["category"], len(order)), r["name"].lower()))
+    cat_order = {key: i for i, key in enumerate(categories)}
+    svc_order = service_order or {}
+    last = len(svc_order) + len(rows)
+    return sorted(
+        rows,
+        key=lambda r: (
+            cat_order.get(r["category"], len(cat_order)),
+            svc_order.get(r["id"], last),
+            r["name"].lower(),
+        ),
+    )
 
 
 @app.get("/api/services", response_model=list[ServiceOut], tags=["estado"])
 async def services(request: Request, pool: Pool):
-    rows = sort_by_category(await db.list_services(pool), request.app.state.categories)
+    state = request.app.state
+    rows = sort_by_category(await db.list_services(pool), state.categories, state.service_order)
     return [_service_out(request, r) for r in rows]
 
 

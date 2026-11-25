@@ -144,6 +144,11 @@ services:
     category: educacion
     url: https://www.ulatina.edu.pa
     interval_seconds: 300
+    # Pausado 2026-11-24: el servidor no envía el certificado intermedio de Sectigo
+    # (openssl: "unable to verify the first certificate"). Los navegadores lo completan
+    # por su cuenta, pero un cliente estricto (Python, curl) no, y se mostraría como
+    # "caído" sin estarlo para los usuarios. Reactivar cuando corrijan la cadena TLS.
+    enabled: false
   - id: uip
     name: UIP (Interamericana)
     category: educacion

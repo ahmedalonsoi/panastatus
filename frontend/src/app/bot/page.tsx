@@ -25,8 +25,8 @@ export default function BotPage() {
   ];
 
   return (
-    <article className="mt-6 min-w-0 space-y-4 break-words">
-      <h1 className="text-xl font-semibold">PanaStatusBot</h1>
+    <article className="min-w-0 space-y-4 break-words">
+      <h1 className="text-2xl font-semibold">PanaStatusBot</h1>
       <p className="text-muted">
         Información para administradores de sitios web que ven este bot en sus registros.
       </p>

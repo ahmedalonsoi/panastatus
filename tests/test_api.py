@@ -64,6 +64,8 @@ def client(monkeypatch):
     monkeypatch.setattr(db, "list_services", list_services)
     api.app.state.pool = FakePool()
     api.app.state.categories = CATEGORIES
+    # Orden del YAML: "banistmo" antes que "bac" a propósito, para probar que manda el YAML.
+    api.app.state.service_order = {"banistmo": 0, "bac": 1, "dgi": 2, "utp": 3}
     api.limiter.enabled = False  # el límite de peticiones se prueba aparte, no aquí
     yield TestClient(api.app), rows
     api.limiter.enabled = True
@@ -72,14 +74,16 @@ def client(monkeypatch):
 def test_servicios_en_orden_de_categorias_del_yaml(client):
     http, _ = client
     body = http.get("/api/services").json()
-    # Orden del YAML (bancos, gobierno, educación) y, dentro, alfabético.
-    assert [s["id"] for s in body] == ["bac", "banistmo", "dgi", "utp"]
+    # Orden de categorías del YAML (bancos, gobierno, educación) y, dentro, orden del YAML.
+    assert [s["id"] for s in body] == ["banistmo", "bac", "dgi", "utp"]
     assert body[3]["category_label"] == "🎓 Educación"
 
 
-def test_categoria_desconocida_va_al_final():
-    rows = [_row("x", "X", "otra"), _row("a", "A", "bancos")]
-    assert [r["id"] for r in api.sort_by_category(rows, CATEGORIES)] == ["a", "x"]
+def test_categoria_y_servicio_desconocidos_van_al_final():
+    rows = [_row("x", "X", "otra"), _row("b", "B", "bancos"), _row("a", "A", "bancos")]
+    # "a" no está en el YAML: va después de "b" (que sí está) dentro de su categoría.
+    ordered = api.sort_by_category(rows, CATEGORIES, {"b": 0})
+    assert [r["id"] for r in ordered] == ["b", "a", "x"]
 
 
 @pytest.mark.parametrize(
