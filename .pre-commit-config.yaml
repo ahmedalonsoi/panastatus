@@ -1,0 +1,33 @@
+# Revisiones automáticas ANTES de cada commit (lo mismo que CI, pero en segundos y local).
+#
+#   uv tool install pre-commit      # una vez
+#   pre-commit install              # activa el hook en este repo
+#   pre-commit run --all-files      # revisar todo a mano
+#
+# Las versiones se fijan (rev) y se actualizan con `pre-commit autoupdate`.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args: [--unsafe] # compose.prod.yml usa la etiqueta !reset de Docker Compose
+      - id: check-toml
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.6 # igual que uv.lock
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks

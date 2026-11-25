@@ -122,7 +122,9 @@ app = FastAPI(
 # /health lo consulta Docker cada pocos segundos: no lo medimos para no ensuciar las métricas.
 FastAPIInstrumentor.instrument_app(app, excluded_urls="health")
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# slowapi tipa su handler con RateLimitExceeded y Starlette espera Exception genérica;
+# en ejecución es correcto (Starlette solo lo llama con RateLimitExceeded).
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 app.add_middleware(SlowAPIMiddleware)
 
 # CORS: en producción la página y la API comparten dominio y no hace falta. En desarrollo

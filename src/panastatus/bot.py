@@ -22,7 +22,15 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 import asyncpg
-from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    BotCommand,
+    CallbackQuery,
+    Chat,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    Update,
+)
 from telegram.constants import ChatMemberStatus, ChatType, ParseMode
 from telegram.ext import (
     Application,
@@ -68,11 +76,37 @@ def categories_of(context: ContextTypes.DEFAULT_TYPE) -> dict[str, str]:
     return context.application.bot_data["categories"]
 
 
+# Accesos seguros al Update. Telegram tipa message/chat/callback_query como opcionales
+# porque un Update puede ser de muchos tipos; los handlers de abajo solo se registran
+# para comandos y botones, donde siempre existen. Si algún día no existen, el error es
+# explícito (y queda en los logs) en vez de un AttributeError sobre None.
+
+
+def message_of(update: Update) -> Message:
+    if update.effective_message is None:
+        raise RuntimeError("Update sin mensaje")
+    return update.effective_message
+
+
+def chat_of(update: Update) -> Chat:
+    if update.effective_chat is None:
+        raise RuntimeError("Update sin chat")
+    return update.effective_chat
+
+
+def query_of(update: Update) -> CallbackQuery:
+    if update.callback_query is None:
+        raise RuntimeError("Update sin callback_query")
+    return update.callback_query
+
+
 async def can_manage(update: Update) -> bool:
     """En chats privados siempre; en grupos solo administradores."""
-    chat = update.effective_chat
+    chat = chat_of(update)
     if chat.type == ChatType.PRIVATE:
         return True
+    if update.effective_user is None:  # mensajes de canales anónimos: no gestionan
+        return False
     member = await chat.get_member(update.effective_user.id)
     return member.status in (ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER)
 
@@ -87,7 +121,7 @@ def fmt_pct(value: float | None) -> str:
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.effective_message.reply_text(HELP, parse_mode=ParseMode.HTML)
+    await message_of(update).reply_text(HELP, parse_mode=ParseMode.HTML)
 
 
 # ---------------------------------------------------------------------------
@@ -124,16 +158,16 @@ async def services_keyboard(
 
 
 async def servicios(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.effective_message.reply_text(
+    await message_of(update).reply_text(
         "Elige una categoría. Toca un servicio para seguirlo (✅) o dejar de seguirlo (➕).",
         reply_markup=categories_keyboard(categories_of(context)),
     )
 
 
 async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
+    query = query_of(update)
     pool = pool_of(context)
-    chat_id = update.effective_chat.id
+    chat_id = chat_of(update).id
     data = query.data or ""
 
     if data == "home":
@@ -190,7 +224,7 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 lines.append(f"{STATUS_EMOJI[s['status']]} {html.escape(s['name'])}")
         down = sum(s["status"] == "down" for s in services)
         header = "✅ Todo operativo" if down == 0 else f"⚠️ {down} servicio(s) caído(s)"
-        await update.effective_message.reply_text(
+        await message_of(update).reply_text(
             header + "\n" + "\n".join(lines) + "\n\nDetalle: /estado <i>nombre</i>",
             parse_mode=ParseMode.HTML,
         )
@@ -200,7 +234,7 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     term = " ".join(context.args).lower()
     matches = [s for s in services if term == s["id"] or term in s["name"].lower()]
     if not matches:
-        await update.effective_message.reply_text(
+        await message_of(update).reply_text(
             "No encontré ese servicio. Usa /estado para ver la lista."
         )
         return
@@ -226,7 +260,7 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         lines.append(f"Certificado SSL: vence en {s['ssl_days_left']} días{warn}")
     if s["last_checked_at"]:
         lines.append(f"Revisado: {s['last_checked_at'].astimezone(PANAMA_TZ):%H:%M} (Panamá)")
-    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+    await message_of(update).reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
 
 
 # ---------------------------------------------------------------------------
@@ -236,9 +270,9 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def missuscripciones(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pool = pool_of(context)
-    sub = await db.get_subscriber(pool, update.effective_chat.id)
+    sub = await db.get_subscriber(pool, chat_of(update).id)
     if not sub or not sub["services"]:
-        await update.effective_message.reply_text(
+        await message_of(update).reply_text(
             "No sigues ningún servicio. Usa /servicios para elegir."
         )
         return
@@ -247,14 +281,14 @@ async def missuscripciones(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     text = "<b>Sigues:</b>\n" + "\n".join(lines)
     if sub["muted_until"] and sub["muted_until"] > datetime.now(UTC):
         text += f"\n\n🔕 En silencio hasta las {sub['muted_until'].astimezone(PANAMA_TZ):%H:%M}"
-    await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML)
+    await message_of(update).reply_text(text, parse_mode=ParseMode.HTML)
 
 
 async def silencio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await can_manage(update):
-        await update.effective_message.reply_text("Solo los administradores del grupo.")
+        await message_of(update).reply_text("Solo los administradores del grupo.")
         return
-    chat_id = update.effective_chat.id
+    chat_id = chat_of(update).id
     arg = context.args[0].lower().rstrip("h") if context.args else "1"
 
     if arg in ("off", "no", "0"):
@@ -263,7 +297,7 @@ async def silencio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         try:
             hours = int(arg)
         except ValueError:
-            await update.effective_message.reply_text("Uso: /silencio 2  (horas, máx. 72)")
+            await message_of(update).reply_text("Uso: /silencio 2  (horas, máx. 72)")
             return
         hours = max(1, min(hours, 72))
         until = datetime.now(UTC) + timedelta(hours=hours)
@@ -271,15 +305,15 @@ async def silencio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if not await db.set_muted_until(pool_of(context), chat_id, until):
         reply = "No tienes suscripciones. Usa /servicios primero."
-    await update.effective_message.reply_text(reply)
+    await message_of(update).reply_text(reply)
 
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await can_manage(update):
-        await update.effective_message.reply_text("Solo los administradores del grupo.")
+        await message_of(update).reply_text("Solo los administradores del grupo.")
         return
-    await db.delete_subscriber(pool_of(context), update.effective_chat.id)
-    await update.effective_message.reply_text(
+    await db.delete_subscriber(pool_of(context), chat_of(update).id)
+    await message_of(update).reply_text(
         "Listo: borramos este chat de PanaStatus. No recibirás más avisos. "
         "Puedes volver cuando quieras con /servicios."
     )
@@ -321,11 +355,11 @@ async def post_shutdown(app: Application) -> None:
 
 
 async def on_postmortem_review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
+    query = query_of(update)
     admin = get_settings().admin_chat_id
     # Solo el chat del admin puede aprobar. El mensaje solo se le envía a él, pero se
     # verifica igual: nunca confiar en que un botón llegue solo a quien debe.
-    if admin is None or update.effective_chat.id != admin:
+    if admin is None or chat_of(update).id != admin:
         await query.answer("Solo el administrador puede revisar post-mortems.", show_alert=True)
         return
     _, action, raw_id = (query.data or "").split(":", 2)
@@ -338,9 +372,9 @@ async def on_postmortem_review(update: Update, context: ContextTypes.DEFAULT_TYP
     footer = (
         "\n\n✅ <b>Publicado</b> en la página de incidentes." if approved else "\n\n❌ Descartado."
     )
-    await query.edit_message_text(
-        html.escape(query.message.text or "") + footer, parse_mode=ParseMode.HTML
-    )
+    # Un mensaje muy viejo puede ser "inaccesible" (sin texto): se usa cadena vacía.
+    original = query.message.text if isinstance(query.message, Message) else None
+    await query.edit_message_text(html.escape(original or "") + footer, parse_mode=ParseMode.HTML)
 
 
 async def count_command(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
