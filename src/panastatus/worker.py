@@ -81,7 +81,11 @@ async def process_result(
     )
     if event:
         await notifier.notify(event, service, result, incident)
-    if event == "recovered" and postmortem.should_draft(incident, settings):
+    if (
+        event == "recovered"
+        and incident is not None
+        and postmortem.should_draft(incident, settings)
+    ):
         # En segundo plano: la IA tarda unos segundos y el bucle de revisiones no espera.
         task = asyncio.create_task(
             postmortem.generate_and_send(pool, notifier, settings, incident["id"])

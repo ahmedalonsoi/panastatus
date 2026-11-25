@@ -3,7 +3,7 @@
 #   docker build -f frontend/Dockerfile .
 
 # --- Etapa 1: compilar Next.js (Node solo existe aquí, NO en la imagen final) ---
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 # Dependencias primero: esta capa se cachea mientras package-lock.json no cambie.
 COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
