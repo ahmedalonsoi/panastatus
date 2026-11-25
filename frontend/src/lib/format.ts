@@ -45,6 +45,34 @@ export function duration(seconds: number): string {
   return `${seconds} s`;
 }
 
+const RELATIVE = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
+
+/** "hace 2 minutos", "hace 1 hora"... (para "Actualizado ..."). */
+export function timeAgo(iso: string, now = Date.now()): string {
+  const seconds = Math.round((new Date(iso).getTime() - now) / 1000);
+  const abs = Math.abs(seconds);
+  if (abs < 45) return "hace unos segundos";
+  if (abs < 3600) return RELATIVE.format(Math.round(seconds / 60), "minute");
+  if (abs < 86_400) return RELATIVE.format(Math.round(seconds / 3600), "hour");
+  return RELATIVE.format(Math.round(seconds / 86_400), "day");
+}
+
+/**
+ * Disponibilidad de un periodo a partir de los puntos diarios, ponderada por la cantidad
+ * de revisiones de cada día (un día con 10 revisiones no pesa igual que uno con 480).
+ */
+export function weightedUptime(points: { total: number; ok_count: number }[]): number | null {
+  const total = points.reduce((sum, p) => sum + p.total, 0);
+  if (!total) return null;
+  return points.reduce((sum, p) => sum + p.ok_count, 0) / total;
+}
+
+/** El peor estado de un grupo: decide el resumen de una categoría. */
+const SEVERITY: Record<Status, number> = { up: 0, unknown: 1, degraded: 2, down: 3 };
+export function worstStatus(statuses: Status[]): Status {
+  return statuses.reduce<Status>((worst, s) => (SEVERITY[s] > SEVERITY[worst] ? s : worst), "up");
+}
+
 /** Las fechas AAAA-MM-DD de los últimos `n` días en hora de Panamá, de la más vieja a hoy. */
 export function lastDays(n: number, now = Date.now()): string[] {
   const days: string[] = [];
