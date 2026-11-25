@@ -1,0 +1,30 @@
+name: Proponer un servicio
+description: Sugerir un sitio público de Panamá para monitorear.
+labels: [servicio]
+body:
+  - type: input
+    id: nombre
+    attributes:
+      label: Nombre del servicio
+      placeholder: Ministerio de ...
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: URL pública
+      description: Debe abrir sin iniciar sesión. En portales con login, la página pública de inicio de sesión.
+      placeholder: https://...
+    validations:
+      required: true
+  - type: dropdown
+    id: categoria
+    attributes:
+      label: Categoría
+      options: [Bancos, Gobierno, Educación, Servicios globales, Otra]
+    validations:
+      required: true
+  - type: textarea
+    id: motivo
+    attributes:
+      label: ¿Por qué es útil monitorearlo?

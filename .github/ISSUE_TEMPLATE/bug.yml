@@ -1,0 +1,32 @@
+name: Reportar un error
+description: Algo de PanaStatus no funciona como debería.
+labels: [bug]
+body:
+  - type: textarea
+    id: que
+    attributes:
+      label: Qué pasó
+      description: Qué esperabas y qué ocurrió en su lugar.
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo reproducirlo
+      placeholder: |
+        1. Abrir la página de estado
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: componente
+    attributes:
+      label: Componente
+      options: [Página web, API, Bot de Telegram, Checker / avisos, Otro]
+    validations:
+      required: true
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Evidencia
+      description: Capturas, logs o la hora aproximada (hora de Panamá). Sin datos personales.
