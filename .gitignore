@@ -33,3 +33,9 @@ backups/
 
 # Exportaciones CSV de reportes (datos, no código)
 reports/
+
+# Cobertura de pruebas (pytest-cov)
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
