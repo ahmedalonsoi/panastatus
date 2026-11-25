@@ -16,7 +16,7 @@ export default function BotPage() {
   const services = useSWR<Service[]>("/api/services", fetcher);
 
   const rows: [string, string][] = [
-    ["Peticiones", "Una sola petición GET a una URL pública (normalmente la página de inicio). Nunca inicia sesión ni envía formularios."],
+    ["Peticiones", "Una sola petición GET a una URL pública: la página de inicio o, en portales como Moodle o matrícula, la página pública de inicio de sesión. Nunca inicia sesión, nunca envía credenciales ni formularios."],
     ["Frecuencia", "Una petición cada 1 a 5 minutos por sitio (normalmente cada 3 minutos), unas 480 al día como máximo."],
     ["Contenido descargado", "Ninguno. Solo se leen los encabezados de la respuesta y se cierra la conexión."],
     ["Qué se mide", "Código de estado HTTP, tiempo de respuesta y fecha de vencimiento del certificado TLS (leída de la misma conexión, sin peticiones extra)."],
