@@ -180,9 +180,21 @@ async def summary(pool: Pool):
     return {"overall": overall, "counts": counts, "last_checked_at": last}
 
 
+def sort_by_category(rows: list, categories: dict[str, str]) -> list:
+    """Ordena por el orden de las categorías en services.yaml y luego por nombre.
+
+    La DB ordena alfabéticamente por la llave de la categoría; aquí se respeta el orden
+    que eligió quien edita la configuración (así la página muestra Bancos, Gobierno,
+    Educación... y no "educacion" antes que "gobierno").
+    """
+    order = {key: i for i, key in enumerate(categories)}
+    return sorted(rows, key=lambda r: (order.get(r["category"], len(order)), r["name"].lower()))
+
+
 @app.get("/api/services", response_model=list[ServiceOut], tags=["estado"])
 async def services(request: Request, pool: Pool):
-    return [_service_out(request, r) for r in await db.list_services(pool)]
+    rows = sort_by_category(await db.list_services(pool), request.app.state.categories)
+    return [_service_out(request, r) for r in rows]
 
 
 @app.get("/api/services/{service_id}", response_model=ServiceDetailOut, tags=["estado"])

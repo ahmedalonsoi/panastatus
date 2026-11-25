@@ -22,7 +22,7 @@
 categories:
   bancos: "🏦 Bancos"
   gobierno: "🏛️ Gobierno"
-  educacion: "🎓 UTP y educación"
+  educacion: "🎓 Educación"
   globales: "🌐 Servicios globales"
 
 services:
@@ -79,14 +79,81 @@ services:
     url: https://www.meduca.gob.pa
 
   # --- Educación ---
+  # Universidades oficiales (estatales) y particulares, más los portales académicos que
+  # más usan los estudiantes. En los portales con inicio de sesión (Moodle, matrícula) solo
+  # se pide la página PÚBLICA de inicio de sesión: nunca se envían credenciales. Van cada
+  # 5 minutos para cargar lo mínimo posible a servidores universitarios.
+
+  # Universidad Tecnológica de Panamá (UTP)
   - id: utp
-    name: UTP
+    name: UTP (sitio principal)
     category: educacion
     url: https://utp.ac.pa
+  - id: utp-ecampus
+    name: UTP eCampus (Moodle)
+    category: educacion
+    url: https://ecampus.utp.ac.pa/moodle/
+    interval_seconds: 300
+  - id: utp-virtual
+    name: UTP Virtual (Moodle)
+    category: educacion
+    url: https://virtual.utp.ac.pa/moodle/
+    interval_seconds: 300
+  - id: utp-matricula
+    name: UTP Matrícula
+    category: educacion
+    url: https://matricula.utp.ac.pa
+    interval_seconds: 300
+
+  # Universidad de Panamá (UP)
   - id: up
     name: Universidad de Panamá
     category: educacion
     url: https://www.up.ac.pa
+  - id: up-matricula
+    name: UP Secretaría Virtual (matrícula)
+    category: educacion
+    url: https://matricula.up.ac.pa/sevup/
+    interval_seconds: 300
+
+  # Otras universidades oficiales
+  - id: unachi
+    name: UNACHI
+    category: educacion
+    url: https://www.unachi.ac.pa
+    interval_seconds: 300
+  - id: udelas
+    name: UDELAS
+    category: educacion
+    url: https://www.udelas.ac.pa
+    interval_seconds: 300
+  - id: umip
+    name: UMIP (Universidad Marítima)
+    category: educacion
+    url: https://www.umip.ac.pa
+    interval_seconds: 300
+
+  # Universidades particulares
+  - id: usma
+    name: USMA
+    category: educacion
+    url: https://usma.ac.pa
+    interval_seconds: 300
+  - id: ulatina
+    name: Universidad Latina
+    category: educacion
+    url: https://www.ulatina.edu.pa
+    interval_seconds: 300
+  - id: uip
+    name: UIP (Interamericana)
+    category: educacion
+    url: https://uip.edu.pa
+    interval_seconds: 300
+  - id: udelistmo
+    name: Universidad del Istmo
+    category: educacion
+    url: https://www.udelistmo.edu
+    interval_seconds: 300
 
   # --- Globales (útiles para distinguir "se cayó X" de "se cayó internet") ---
   - id: google
