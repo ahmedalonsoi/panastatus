@@ -60,6 +60,33 @@ async def sync_services(pool: asyncpg.Pool, services: Sequence[ServiceConfig]) -
             "UPDATE services SET enabled = false WHERE NOT (id = ANY($1::text[]))",
             [s.id for s in services],
         )
+        await _close_paused(conn)
+
+
+async def _close_paused(conn: asyncpg.Connection) -> None:
+    """Al pausar un servicio, cierra su incidente abierto y reinicia su estado.
+
+    Sin esto, un incidente abierto quedaría "En curso" para siempre (nadie más lo revisa),
+    inflando el MTTR y los reportes. Se cierra en el momento de la pausa y la causa lo
+    deja explícito, para que nadie lo confunda con una recuperación real.
+    """
+    await conn.execute(
+        """
+        UPDATE incidents i
+        SET resolved_at = now(),
+            cause = concat_ws(' · ', i.cause, 'cerrado al pausar el monitoreo')
+        FROM services s
+        WHERE s.id = i.service_id AND NOT s.enabled AND i.resolved_at IS NULL
+        """
+    )
+    await conn.execute(
+        """
+        UPDATE services
+        SET status = 'unknown', consecutive_failures = 0, consecutive_slow = 0,
+            failing_since = NULL
+        WHERE NOT enabled AND status <> 'unknown'
+        """
+    )
 
 
 async def insert_check(conn: asyncpg.Connection, r: CheckResult) -> None:
