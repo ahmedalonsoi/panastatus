@@ -2,7 +2,24 @@
 
 **Monitor público de disponibilidad de servicios web de Panamá**: bancos, gobierno, universidades y servicios globales. Revisa cada sitio cada 1–5 minutos, publica el estado en una página web, avisa por Telegram cuando algo se cae y redacta con IA el post-mortem de los incidentes largos.
 
-> Proyecto de portafolio orientado a **soporte de aplicaciones, observabilidad y confiabilidad (SRE)**.
+> Proyecto de portafolio orientado a **soporte de aplicaciones, observabilidad y confiabilidad (SRE)**. Todo el sistema (9 servicios) se levanta con un solo comando de Docker Compose.
+
+## Capturas
+
+**Página de estado**: estado general, servicios por categoría, barra de 90 días y disponibilidad de 24 h.
+
+![Página de estado de PanaStatus](docs/img/pagina-estado.png)
+
+**Dashboard de operación en Grafana**: servicios operativos, tasa de fallas, estado por servicio, latencia p95 y vigencia de certificados TLS.
+
+![Dashboard de Grafana](docs/img/grafana.png)
+
+<details>
+<summary>Vista en móvil</summary>
+
+<img src="docs/img/pagina-movil.png" alt="Página de estado en móvil" width="360">
+
+</details>
 
 ## Qué hace
 
@@ -21,7 +38,7 @@
 
 ```mermaid
 flowchart LR
-    subgraph Servidor["Servidor (Oracle Cloud, Docker Compose)"]
+    subgraph Servidor["Docker Compose"]
         caddy["Caddy<br/>HTTPS + página Next.js"]
         api["API<br/>FastAPI"]
         worker["Worker<br/>checker asyncio"]
@@ -58,7 +75,7 @@ flowchart LR
 
 ## Stack
 
-**Backend:** Python 3.12, asyncio, httpx, Pydantic, FastAPI, python-telegram-bot · **Datos:** PostgreSQL 17 + TimescaleDB (hypertable, agregado continuo, retención) · **Frontend:** Next.js 16, TypeScript, Tailwind, SWR · **Observabilidad:** OpenTelemetry, Grafana Alloy, Prometheus, Loki, Grafana · **Infraestructura:** Docker Compose, Caddy, OpenTofu, Oracle Cloud (Always Free, ARM) · **CI/CD:** GitHub Actions, GHCR, Ruff, pytest, ESLint, Trivy, gitleaks · **IA:** API de Claude · **BI:** Power BI.
+**Backend:** Python 3.12, asyncio, httpx, Pydantic, FastAPI, python-telegram-bot · **Datos:** PostgreSQL 17 + TimescaleDB (hypertable, agregado continuo, retención) · **Frontend:** Next.js 16, TypeScript, Tailwind, SWR · **Observabilidad:** OpenTelemetry, Grafana Alloy, Prometheus, Loki, Grafana · **Infraestructura:** Docker Compose, Caddy (y, para producción, OpenTofu + Oracle Cloud ARM) · **CI/CD:** GitHub Actions, GHCR, Ruff, pytest, ESLint, Trivy, gitleaks · **IA:** API de Claude · **BI:** Power BI.
 
 ## Correr en local
 
@@ -104,7 +121,7 @@ La página [`/bot/`](frontend/src/app/bot/page.tsx) explica a los administradore
 
 ## Documentación
 
-- [docs/despliegue.md](docs/despliegue.md): publicar en Oracle Cloud paso a paso.
+- [docs/despliegue.md](docs/despliegue.md): publicar en la nube paso a paso (opcional: el código de infraestructura para Oracle Cloud está listo, pero el proyecto aún no está desplegado).
 - [docs/operacion.md](docs/operacion.md): runbook (alertas, respaldos, restauración, problemas comunes).
 - [docs/powerbi.md](docs/powerbi.md): reportes y medidas DAX.
 - [infra/oracle/README.md](infra/oracle/README.md): infraestructura como código.

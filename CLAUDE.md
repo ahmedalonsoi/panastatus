@@ -32,9 +32,10 @@ Fase 2 Producto: bot con suscripciones, API, página pública.
 Fase 3 Producción: nube con OpenTofu, CI/CD, HTTPS, observabilidad interna. → Lanzamiento público.
 Fase 4 Análisis: post-mortems con IA, Power BI, README.
 
-## Estado (2026-11-23)
-Fases 1–4 implementadas en código. Pendiente (requiere al dueño): comprar dominio, cuenta Oracle Cloud + `tofu apply`,
-repo en GitHub con secretos, primer despliegue, ANTHROPIC_API_KEY, armar el .pbix en Power BI. Ver docs/despliegue.md.
+## Estado (2026-11-24)
+Fases 1–4 implementadas en código. Decisión: **sin nube por ahora** (no hay acceso a la cuenta de Oracle). El proyecto se
+presenta como local con Docker Compose + capturas en el README (docs/img/). El código de OpenTofu/despliegue se conserva
+para retomarlo. Siguiente: repo en GitHub (sin desplegar; `DEPLOY_ENABLED` sin definir). Opcional: ANTHROPIC_API_KEY, .pbix.
 
 ## Convenciones de trabajo
 - Una rama por cambio, commits convencionales en español (feat:, fix:, chore:...), merge --no-ff a main. Sin push sin permiso.
