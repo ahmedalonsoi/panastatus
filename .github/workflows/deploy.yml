@@ -44,6 +44,7 @@ jobs:
       contents: read
       packages: write # publicar en GHCR
     strategy:
+      fail-fast: false # si una imagen falla, la otra termina igual (diagnóstico completo)
       matrix:
         include:
           - name: app
@@ -88,6 +89,10 @@ jobs:
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.img.outputs.name }}:${{ github.sha }}
+          # Solo vulnerabilidades. Los secretos se buscan con gitleaks sobre el repo (job ci/secretos);
+          # el escáner de secretos de Trivy da falsos positivos con la documentación de librerías
+          # de terceros (p. ej. docstrings del SDK de Anthropic).
+          scanners: vuln
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
@@ -128,9 +133,9 @@ jobs:
           # permanente de GHCR guardada en el servidor.
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          owner=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
-          app="ghcr.io/$owner/panastatus-app:$GITHUB_SHA"
-          web="ghcr.io/$owner/panastatus-web:$GITHUB_SHA"
+          registry_owner=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          app="ghcr.io/$registry_owner/panastatus-app:$GITHUB_SHA"
+          web="ghcr.io/$registry_owner/panastatus-web:$GITHUB_SHA"
           # El token viaja por stdin (nunca en la línea de comandos, que queda en logs).
           printf '%s' "$TOKEN" | ssh -i ~/.ssh/id_deploy "deploy@$HOST" \
             "docker login ghcr.io -u '$ACTOR' --password-stdin >/dev/null"
